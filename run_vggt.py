@@ -15,6 +15,7 @@ import tempfile
 import cv2
 import numpy as np
 import torch
+from utils import predictions_to_pcd
 
 # vggt-omega lives under submodules/, add it to sys.path on demand.
 _REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -92,7 +93,6 @@ def run_vggt(image_paths, checkpoint, device, conf_thres):
     from vggt.utils.load_fn import load_and_preprocess_images
     from vggt.utils.pose_enc import pose_encoding_to_extri_intri
     from vggt.utils.geometry import unproject_depth_map_to_point_map
-    from src.geometry_utils import predictions_to_pcd
 
     images = load_and_preprocess_images(image_paths).to(device)
     print(f"Loaded {len(images)} frames; tensor shape {tuple(images.shape)}.")
@@ -155,7 +155,6 @@ def run_vggt_omega(image_paths, checkpoint, device, conf_thres, image_resolution
     from vggt_omega.models import VGGTOmega
     from vggt_omega.utils.load_fn import load_and_preprocess_images as load_omega_images
     from vggt_omega.utils.pose_enc import encoding_to_camera
-    from src.geometry_utils import predictions_to_pcd
 
     images = load_omega_images(image_paths, image_resolution=image_resolution).to(device)
     print(f"Loaded {len(images)} frames; tensor shape {tuple(images.shape)}.")

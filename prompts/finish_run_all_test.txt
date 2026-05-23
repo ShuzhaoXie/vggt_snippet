@@ -1,0 +1,142 @@
+下面是数据的一些路径，都会在项目的./data文件夹下，现在可能没有./data文件夹，但你先不用管，先按照./data来。我给你的任务是，根据这些路径补全 run_all_test.py里面的dataset_name_to_scenes, 用dataset_name和scene_name组成input_path: f"./data/{dataset_name}/{scene_name}"。
+
+做完这些以后，再更新一下run_vggt.py，让它能够根据dataset_name和scene_name来读取数据，并且输出结果到f"./data/{dataset_name}/{scene_name}/vggt"或者f"./data/{dataset_name}/{scene_name}/vggt_omega"里面。
+
+run_vggt.py里面，找图片这块，_list_image_paths函数里面，按照dataset_name和scene_name来读取图片路径，然后也有可能会有一些特殊的dataset_name和scene_name需要单独处理，
+比如holoscene和simrecon的rgb图像在images文件夹下。
+
+.
+├── dprecon
+│   ├── replica
+│   │   ├── GTmesh
+│   │   ├── scan1
+│   │   ├── scan2
+│   │   ├── scan3
+│   │   ├── scan4
+│   │   ├── scan5
+│   │   ├── scan6
+│   │   ├── scan7
+│   │   └── scan8
+│   ├── replica.zip
+│   ├── scannetpp
+│   │   ├── GTmesh
+│   │   ├── scan1
+│   │   ├── scan2
+│   │   ├── scan3
+│   │   ├── scan4
+│   │   ├── scan5
+│   │   └── scan6
+│   ├── scannetpp.zip
+│   ├── youtube
+│   │   ├── scan1
+│   │   ├── scan2
+│   │   └── scan3
+│   └── youtube.zip
+├── holoscene
+│   ├── custom
+│   │   ├── siebelgame
+│   │   └── siebelgame.zip
+│   ├── gibson
+│   │   ├── Beechwood_0_int
+│   │   ├── Beechwood_0_int.zip
+│   │   ├── Beechwood_1_int
+│   │   └── Beechwood_1_int.zip
+│   ├── replica
+│   │   ├── room_0
+│   │   ├── room_0.zip
+│   │   ├── room_1
+│   │   ├── room_1.zip
+│   │   ├── room_2
+│   │   └── room_2.zip
+│   └── scannetpp
+│       ├── 67d702f2e8
+│       ├── 67d702f2e8.zip
+│       ├── 7831862f02
+│       ├── 7831862f02.zip
+│       ├── acd69a1746
+│       └── acd69a1746.zip
+├── hope-dataset
+│   ├── hope_image
+│   │   ├── test
+│   │   └── valid
+│   ├── hope-image-preview
+│   │   ├── scene_0000
+│   │   ├── scene_0001
+│   │   ├── scene_0002
+│   │   ├── scene_0003
+│   │   ├── scene_0004
+│   │   ├── scene_0005
+│   │   ├── scene_0006
+│   │   ├── scene_0007
+│   │   ├── scene_0008
+│   │   └── scene_0009
+│   ├── hope_video
+│   │   ├── scene_0000
+│   │   ├── scene_0001
+│   │   ├── scene_0002
+│   │   ├── scene_0003
+│   │   ├── scene_0004
+│   │   ├── scene_0005
+│   │   ├── scene_0006
+│   │   ├── scene_0007
+│   │   ├── scene_0008
+│   │   └── scene_0009
+│   ├── meshes
+│   │   ├── eval
+│   │   └── full
+│   ├── preview.py
+│   ├── readme_files
+│   │   ├── env_01.jpg
+│   │   ├── env_02.jpg
+│   │   ├── env_03.jpg
+│   │   ├── light_01.jpg
+│   │   ├── light_02.jpg
+│   │   ├── light_03.jpg
+│   │   ├── syn_objects.jpg
+│   │   ├── video_01.jpg
+│   │   ├── video_02.jpg
+│   │   └── video_03.jpg
+│   ├── README.md
+│   ├── setup.json
+│   └── setup.py
+├── phyrecon
+│   ├── replica
+│   │   ├── GTmesh
+│   │   ├── scan1
+│   │   ├── scan2
+│   │   ├── scan3
+│   │   ├── scan4
+│   │   ├── scan5
+│   │   ├── scan6
+│   │   ├── scan7
+│   │   └── scan8
+│   ├── scannetpp
+│   │   ├── GTmesh
+│   │   ├── scan1
+│   │   ├── scan2
+│   │   ├── scan3
+│   │   ├── scan4
+│   │   ├── scan5
+│   │   ├── scan6
+│   │   └── scan7
+│   └── scannet.zip
+├── ras
+└── simrecon
+    ├── room_4
+    │   ├── images
+    │   ├── point_cloud.ply
+    │   ├── sam
+    │   └── sparse
+    ├── scene0000_00
+    │   ├── depth_maps
+    │   ├── depth_maps.tar.gz
+    │   ├── images
+    │   ├── point_cloud.ply
+    │   ├── sam
+    │   ├── sampled_images
+    │   └── sparse
+    └── waldo_kitchen
+        ├── images
+        ├── point_cloud.ply
+        ├── sam
+        └── sparse

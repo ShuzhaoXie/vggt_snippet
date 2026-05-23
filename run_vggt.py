@@ -23,46 +23,137 @@ _VGGT_OMEGA_PATH = os.path.join(_REPO_ROOT, "submodules", "vggt-omega")
 
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png")
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v")
 NON_RGB_IMAGE_SUFFIXES = ("depth.png", "normal.png", "mask.png", "semantic.png", "seg.png")
+COMMON_IMAGE_SUBDIRS = ("images", "rgb", "color", "colors", "frames", "sampled_images")
+SPECIAL_IMAGE_SUBDIRS = {
+    "holoscene": ("images",),
+    "simrecon": ("images",),
+}
 
 
 def _natural_sort_key(filename):
     return [int(p) if p.isdigit() else p.lower() for p in re.split(r"(\d+)", filename)]
 
 
-def _list_image_paths(input_path, max_frames, tmp_holder):
-    """Return a sorted list of image file paths from a directory or video.
+def _dataset_scene_path(data_root, dataset_name, scene_name):
+    dataset_parts = [part for part in dataset_name.replace("\\", "/").split("/") if part]
+    return os.path.join(data_root, *dataset_parts, scene_name)
 
-    `tmp_holder` is a list the caller keeps a reference to so the
-    TemporaryDirectory used for ffmpeg-extracted frames survives until the
-    images have been loaded.
-    """
-    if os.path.isdir(input_path):
-        images = [
-            f for f in os.listdir(input_path)
-            if f.lower().endswith(IMAGE_EXTENSIONS)
-            and not f.lower().endswith(NON_RGB_IMAGE_SUFFIXES)
-        ]
-        rgb_png = [f for f in images if f.lower().endswith("rgb.png")]
-        if rgb_png:
-            images = rgb_png
-        images = sorted(images, key=_natural_sort_key)
-        if not images:
-            raise ValueError(f"No image files found in directory: {input_path}")
-        if max_frames > 0 and len(images) > max_frames:
-            indices = np.linspace(0, len(images) - 1, max_frames).astype(int)
-            images = [images[i] for i in indices]
-        return [os.path.join(input_path, img) for img in images]
 
+def _dedupe_paths(paths):
+    seen = set()
+    deduped = []
+    for path in paths:
+        normalized = os.path.normpath(path)
+        if normalized not in seen:
+            seen.add(normalized)
+            deduped.append(path)
+    return deduped
+
+
+def _candidate_input_paths(input_path, dataset_name):
+    if not os.path.isdir(input_path):
+        return [input_path]
+
+    dataset_root = dataset_name.replace("\\", "/").split("/", 1)[0] if dataset_name else ""
+    candidates = []
+    for subdir in SPECIAL_IMAGE_SUBDIRS.get(dataset_root, ()):
+        candidates.append(os.path.join(input_path, subdir))
+    candidates.append(input_path)
+    for subdir in COMMON_IMAGE_SUBDIRS:
+        candidates.append(os.path.join(input_path, subdir))
+    return _dedupe_paths(candidates)
+
+
+def _find_rgb_images(directory):
+    if not os.path.isdir(directory):
+        return []
+
+    images = [
+        f for f in os.listdir(directory)
+        if f.lower().endswith(IMAGE_EXTENSIONS)
+        and not f.lower().endswith(NON_RGB_IMAGE_SUFFIXES)
+    ]
+    rgb_png = [f for f in images if f.lower().endswith("rgb.png")]
+    if rgb_png:
+        images = rgb_png
+
+    images = sorted(images, key=_natural_sort_key)
+    return [os.path.join(directory, img) for img in images]
+
+
+def _find_videos(directory):
+    if not os.path.isdir(directory):
+        return []
+
+    videos = [
+        f for f in os.listdir(directory)
+        if f.lower().endswith(VIDEO_EXTENSIONS)
+    ]
+    videos = sorted(videos, key=_natural_sort_key)
+    return [os.path.join(directory, video) for video in videos]
+
+
+def _subsample_paths(paths, max_frames):
+    if max_frames > 0 and len(paths) > max_frames:
+        indices = np.linspace(0, len(paths) - 1, max_frames).astype(int)
+        return [paths[i] for i in indices]
+    return paths
+
+
+def _extract_video_frames(video_path, max_frames, tmp_holder):
     tmp = tempfile.TemporaryDirectory()
     tmp_holder.append(tmp)
     subprocess.run(
-        ["ffmpeg", "-i", input_path, "-vsync", "0", os.path.join(tmp.name, "frame_%04d.png")],
+        ["ffmpeg", "-i", video_path, "-vsync", "0", os.path.join(tmp.name, "frame_%04d.png")],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=True,
     )
     return _list_image_paths(tmp.name, max_frames, tmp_holder)
+
+
+def _list_image_paths(input_path, max_frames, tmp_holder, dataset_name=None, scene_name=None):
+    """Return a sorted list of RGB image paths for a scene directory or video.
+
+    `tmp_holder` is a list the caller keeps a reference to so the
+    TemporaryDirectory used for ffmpeg-extracted frames survives until the
+    images have been loaded.
+    """
+    del scene_name
+    input_path = os.path.expanduser(input_path)
+
+    if os.path.isdir(input_path):
+        candidate_paths = _candidate_input_paths(input_path, dataset_name)
+        for candidate in candidate_paths:
+            images = _find_rgb_images(candidate)
+            if images:
+                return _subsample_paths(images, max_frames)
+
+        videos = []
+        for candidate in candidate_paths:
+            videos.extend(_find_videos(candidate))
+        videos = _dedupe_paths(videos)
+        if len(videos) == 1:
+            return _extract_video_frames(videos[0], max_frames, tmp_holder)
+        if len(videos) > 1:
+            raise ValueError(
+                "Multiple video files found; pass --input-path for the intended video: "
+                + ", ".join(videos)
+            )
+        raise ValueError(
+            "No RGB image or video files found. Checked: "
+            + ", ".join(candidate_paths)
+        )
+
+    if os.path.isfile(input_path):
+        lower_path = input_path.lower()
+        if lower_path.endswith(IMAGE_EXTENSIONS):
+            return [input_path]
+        return _extract_video_frames(input_path, max_frames, tmp_holder)
+
+    raise ValueError(f"Input path does not exist: {input_path}")
 
 
 def _save_outputs(output_path, predictions):
@@ -226,9 +317,51 @@ def run_vggt_omega(image_paths, checkpoint, device, conf_thres, image_resolution
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run VGGT or VGGT-Omega and dump depth + camera parameters.")
-    parser.add_argument("--input-path", required=True, help="Directory of RGB images or a video file.")
-    parser.add_argument("--output-path", required=True, help="Destination folder for outputs.")
-    parser.add_argument("--max-frames", type=int, default=0, help="Uniformly subsample to at most this many frames (0 = use all).")
+    parser.add_argument(
+        "--input-path",
+        "--input_path",
+        dest="input_path",
+        default=None,
+        help="Directory of RGB images or a video file.",
+    )
+    parser.add_argument(
+        "--output-path",
+        "--output_path",
+        dest="output_path",
+        default=None,
+        help="Destination folder for outputs.",
+    )
+    parser.add_argument(
+        "--data-root",
+        "--data_root",
+        dest="data_root",
+        default="./data",
+        help="Root containing dataset folders.",
+    )
+    parser.add_argument(
+        "--dataset-name",
+        "--dataset_name",
+        dest="dataset_name",
+        default=None,
+        help="Dataset path under --data-root, e.g. holoscene/replica.",
+    )
+    parser.add_argument(
+        "--scene-name",
+        "--scene_name",
+        dest="scene_name",
+        default=None,
+        help="Scene name under the dataset folder.",
+    )
+    parser.add_argument(
+        "--max-frames",
+        "--max_frames",
+        "--n-frames",
+        "--n_frames",
+        dest="max_frames",
+        type=int,
+        default=0,
+        help="Uniformly subsample to at most this many frames (0 = use all).",
+    )
     parser.add_argument("--model", choices=["vggt", "vggt_omega"], default="vggt", help="Which model to load.")
     parser.add_argument(
         "--checkpoint",
@@ -241,18 +374,40 @@ def parse_args():
     return parser.parse_args()
 
 
+def _resolve_io_paths(args):
+    if args.dataset_name or args.scene_name:
+        if not args.dataset_name or not args.scene_name:
+            raise SystemExit("--dataset-name and --scene-name must be provided together.")
+
+        scene_path = _dataset_scene_path(args.data_root, args.dataset_name, args.scene_name)
+        input_path = args.input_path or scene_path
+        output_path = args.output_path or os.path.join(scene_path, args.model)
+        return input_path, output_path
+
+    if not args.input_path:
+        raise SystemExit("Provide either --input-path or both --dataset-name and --scene-name.")
+    if not args.output_path:
+        raise SystemExit("--output-path is required when --dataset-name/--scene-name are not used.")
+    return args.input_path, args.output_path
+
+
 def main():
     args = parse_args()
+    input_path, output_path = _resolve_io_paths(args)
 
     if args.device:
         device = torch.device(args.device)
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    os.makedirs(args.output_path, exist_ok=True)
-
     tmp_holder = []
-    image_paths = _list_image_paths(args.input_path, args.max_frames, tmp_holder)
+    image_paths = _list_image_paths(
+        input_path,
+        args.max_frames,
+        tmp_holder,
+        dataset_name=args.dataset_name,
+        scene_name=args.scene_name,
+    )
     print(f"Selected {len(image_paths)} images for {args.model}.")
 
     if args.model == "vggt":
@@ -265,8 +420,8 @@ def main():
             image_paths, args.checkpoint, device, args.conf_thres, args.image_resolution
         )
 
-    _save_outputs(args.output_path, predictions)
-    print(f"Saved outputs to {args.output_path}")
+    _save_outputs(output_path, predictions)
+    print(f"Saved outputs to {output_path}")
 
 
 if __name__ == "__main__":

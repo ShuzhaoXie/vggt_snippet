@@ -38,6 +38,13 @@ def parse_args():
     parser.add_argument("--checkpoint", default=None, help="Optional checkpoint forwarded to run_vggt.py.")
     parser.add_argument("--device", default=None, help="Optional device forwarded to run_vggt.py.")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    parser.add_argument(
+        "--output-dir",
+        "--output_dir",
+        dest="output_dir",
+        default=None,
+        help="Destination folder for outputs.",
+    )
     return parser.parse_args()
 
 
@@ -59,6 +66,8 @@ def main():
                 args.model,
                 "--max-frames",
                 str(args.max_frames),
+                "--output-dir",
+                str(args.output_dir),
             ]
             if args.checkpoint:
                 command.extend(["--checkpoint", args.checkpoint])

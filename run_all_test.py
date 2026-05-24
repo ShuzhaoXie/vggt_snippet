@@ -1,4 +1,5 @@
 import argparse
+import os
 import shlex
 import subprocess
 import sys
@@ -33,7 +34,7 @@ def parse_args():
         dest="max_frames",
         type=int,
         default=30,
-        help="Uniformly subsample each scene to at most this many frames.",
+        help="Uniformly subsample each scene to at most this many frames (-1 = use all).",
     )
     parser.add_argument("--checkpoint", default=None, help="Optional checkpoint forwarded to run_vggt.py.")
     parser.add_argument("--device", default=None, help="Optional device forwarded to run_vggt.py.")
@@ -76,7 +77,23 @@ def main():
 
             print(f"Running command: {shlex.join(command)}")
             if not args.dry_run:
-                subprocess.run(command, check=True)
+                try:
+                    subprocess.run(command, check=True)
+                except subprocess.CalledProcessError as e:
+                    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "1.log")
+                    already_logged = False
+                    if os.path.exists(log_path):
+                        with open(log_path, "r") as lf:
+                            logs = lf.read()
+                            if f"--dataset-name {dataset_name} --scene-name {scene_name}" in logs:
+                                already_logged = True
+                    
+                    if not already_logged:
+                        if e.returncode in (2, -9, 137):
+                            with open(log_path, "a") as lf:
+                                lf.write(f"OOM: --dataset-name {dataset_name} --scene-name {scene_name}\n")
+                    
+                    print(f"Command failed with exit code {e.returncode} on dataset={dataset_name}, scene={scene_name}. Continuing...")
 
 
 if __name__ == "__main__":

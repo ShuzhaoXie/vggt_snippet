@@ -96,6 +96,8 @@ def _find_videos(directory):
 
 
 def _subsample_paths(paths, max_frames):
+    if max_frames == -1:
+        return paths
     if max_frames > 0 and len(paths) > max_frames:
         indices = np.linspace(0, len(paths) - 1, max_frames).astype(int)
         return [paths[i] for i in indices]
@@ -168,7 +170,7 @@ def _save_outputs(output_path, predictions):
     for i, image in enumerate(predictions["colors"]):
         cv2.imwrite(os.path.join(output_path, "color", f"{i}.jpg"), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     for i, depth in enumerate(predictions["depths"]):
-        cv2.imwrite(os.path.join(output_path, "depth", f"{i}.png"), (depth * 1000).astype(np.uint16))
+        np.save(os.path.join(output_path, "depth", f"{i}.npy"), depth)
     for i, extrinsic in enumerate(predictions["extrinsics"]):
         np.savetxt(os.path.join(output_path, "extrinsics", f"{i}.txt"), extrinsic)
 
@@ -361,7 +363,7 @@ def parse_args():
         dest="max_frames",
         type=int,
         default=0,
-        help="Uniformly subsample to at most this many frames (0 = use all).",
+        help="Uniformly subsample to at most this many frames (0 or -1 = use all).",
     )
     parser.add_argument("--model", choices=["vggt", "vggt_omega"], default="vggt", help="Which model to load.")
     parser.add_argument(
@@ -412,18 +414,32 @@ def main():
     )
     print(f"Selected {len(image_paths)} images for {args.model}.")
 
-    if args.model == "vggt":
-        checkpoint = args.checkpoint or "/mnt/storage2/users/szxie_data/vggt/model_vggt.pt"
-        predictions = run_vggt(image_paths, checkpoint, device, args.conf_thres)
-    else:
-        if not args.checkpoint:
-            raise SystemExit("--checkpoint is required when --model vggt_omega.")
-        predictions = run_vggt_omega(
-            image_paths, args.checkpoint, device, args.conf_thres, args.image_resolution
-        )
+    try:
+        if args.model == "vggt":
+            checkpoint = args.checkpoint or "/mnt/storage2/users/szxie_data/vggt/model_vggt.pt"
+            predictions = run_vggt(image_paths, checkpoint, device, args.conf_thres)
+        else:
+            if not args.checkpoint:
+                raise SystemExit("--checkpoint is required when --model vggt_omega.")
+            predictions = run_vggt_omega(
+                image_paths, args.checkpoint, device, args.conf_thres, args.image_resolution
+            )
 
-    _save_outputs(output_path, predictions)
-    print(f"Saved outputs to {output_path}")
+        _save_outputs(output_path, predictions)
+        print(f"Saved outputs to {output_path}")
+    except Exception as e:
+        err_msg = str(e).lower()
+        class_name = e.__class__.__name__
+        is_oom = "outofmemoryerror" in class_name.lower() or "out of memory" in err_msg or "oom" in err_msg
+        
+        if is_oom:
+            log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "1.log")
+            with open(log_path, "a") as f:
+                f.write(f"OOM: --dataset-name {args.dataset_name} --scene-name {args.scene_name}\n")
+            print(f"CUDA Out of memory on dataset={args.dataset_name}, scene={args.scene_name}. Logged to {log_path}", file=sys.stderr)
+            sys.exit(2)
+        else:
+            raise e
 
 
 if __name__ == "__main__":

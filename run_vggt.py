@@ -375,20 +375,21 @@ def parse_args():
 
 
 def _resolve_io_paths(args):
-    if args.dataset_name or args.scene_name:
-        if not args.dataset_name or not args.scene_name:
-            raise SystemExit("--dataset-name and --scene-name must be provided together.")
+    # if args.dataset_name or args.scene_name:
+    if not args.dataset_name or not args.scene_name:
+        raise SystemExit("--dataset-name and --scene-name must be provided together.")
 
-        scene_path = _dataset_scene_path(args.data_root, args.dataset_name, args.scene_name)
-        input_path = args.input_path or scene_path
-        output_path = args.output_path or os.path.join(scene_path, args.model)
-        return input_path, output_path
+    scene_path = _dataset_scene_path(args.data_root, args.dataset_name, args.scene_name)
+    input_path = args.input_path or scene_path
+    output_path = os.path.join(args.output_dir, f"{args.dataset_name}/{args.scene_name}/{args.model}")
+    # args.output_path or os.path.join(scene_path, args.model)
+    return input_path, output_path
 
-    if not args.input_path:
-        raise SystemExit("Provide either --input-path or both --dataset-name and --scene-name.")
-    if not args.output_path:
-        raise SystemExit("--output-path is required when --dataset-name/--scene-name are not used.")
-    return args.input_path, args.output_path
+    # if not args.input_path:
+    #     raise SystemExit("Provide either --input-path or both --dataset-name and --scene-name.")
+    # if not args.output_path:
+    #     raise SystemExit("--output-path is required when --dataset-name/--scene-name are not used.")
+    # return args.input_path, args.output_path
 
 
 def main():

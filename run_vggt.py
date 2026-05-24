@@ -398,7 +398,7 @@ def main():
     input_path, output_path = _resolve_io_paths(args)
 
     if args.device:
-        device = torch.device(args.device)
+        device = torch.device(f"cuda:{args.device}")
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

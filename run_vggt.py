@@ -157,6 +157,7 @@ def _list_image_paths(input_path, max_frames, tmp_holder, dataset_name=None, sce
 
 
 def _save_outputs(output_path, predictions):
+    os.makedirs(output_path, exist_ok=True)
     os.makedirs(os.path.join(output_path, "color"), exist_ok=True)
     os.makedirs(os.path.join(output_path, "depth"), exist_ok=True)
     os.makedirs(os.path.join(output_path, "extrinsics"), exist_ok=True)

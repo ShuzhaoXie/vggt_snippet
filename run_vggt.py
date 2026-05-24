@@ -325,9 +325,9 @@ def parse_args():
         help="Directory of RGB images or a video file.",
     )
     parser.add_argument(
-        "--output-path",
-        "--output_path",
-        dest="output_path",
+        "--output-dir",
+        "--output_dir",
+        dest="output_dir",
         default=None,
         help="Destination folder for outputs.",
     )
